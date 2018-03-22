@@ -1,0 +1,102 @@
+* {
+	align-content: center;
+}
+
+body {
+	font-family: "Courier New", Courier, "Lucida Sans Typewriter", "Lucida Typewriter", monospace;
+
+	width: calc(100% - 80px);
+	height: calc(100% - 200px);
+	
+	display:block;
+	text-align: center;
+	
+	border: 3px solid #000000;
+	margin: 20px 50px 20px 50px;
+	padding: 10px 10px 10px 10px;
+}
+
+#header {
+	color:red;
+	text-align: center;
+	padding: 10px 10px 10px 10px;
+}
+
+#navbar {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+}
+
+#option {
+
+}
+
+#picture {
+    display:inline-block;
+    position: relative;
+    margin: 5px;
+    float:left;
+    width: calc(50% - 10px);
+    height:300px;
+}
+
+#restaurantName {
+	font-weight:bold;
+}
+
+#info {
+    display:inline-block;
+    position: relative;
+    margin: 5px;
+    float:left;
+    width: calc(50% - 10px);
+    height:300px;
+}
+
+#soldOut {
+	font-weight:bold;
+}
+
+#orderDeliveryBox {
+    display:inline-block;
+    position: relative;
+    float:left;
+    height: 150px;
+    width: 100%;
+}
+
+#leftText {
+    display:inline-block;
+    position: relative;
+    float:left;
+    width: 50%;
+}
+
+#timeBoxes {
+    display:inline-block;
+    position: relative;
+    float:left;
+    width: 50%;
+}
+
+.timeBox {
+	display:inline;
+	border: 3px solid #000000;
+	padding: 3px;
+}
+
+#restaurantButton {
+    display:inline-block;
+    position: relative;
+    height: 75px;
+    width: 300px;
+}
+
+#sellingOut {
+    display:inline-block;
+    position: relative;
+    float:left;
+    height: 75px;
+	width: 100%;
+}
