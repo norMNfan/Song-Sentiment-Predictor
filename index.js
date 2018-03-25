@@ -6,7 +6,12 @@ const querystring = require('querystring');
 const cheerio = require('cheerio');
 const fetch = require('node-fetch');
 const Lyricist = require('lyricist/node6');
-const lyricist = new Lyricist('9VF8J-loBbWDz-6g7fktj7tp34pMrHH4VWZ3PrWEwhFn_ngsgkE0A1K8POw2ja92');
+var token = '9VF8J-loBbWDz-6g7fktj7tp34pMrHH4VWZ3PrWEwhFn_ngsgkE0A1K8POw2ja92'
+var Genius = require("node-genius");
+var geniusClient = new Genius(token);
+
+var Spotify = require('spotify-web-api-js');
+var s = new Spotify();
 
 // localhost:9005
 const hostname = '127.0.0.1';
@@ -99,13 +104,17 @@ function getDisplayData(req, res) {
   });
 }
 
-async function getArtistInfo(req, res, reqBody) {
+function getArtistInfo(req, res, reqBody) {
   JSONstring = querystring.parse(reqBody);
   console.log(JSONstring);
   
-  const songs = await lyricist.songsByArtist(2, { page: 2, perPage: 50 });
-  console.log(songs);
-  
+var spotifyApi = new SpotifyWebApi();
+spotifyApi.setAccessToken(token);
+spotifyApi.getArtistAlbums('43ZHCT0cAZBISjO8DG9PnE', function(err, data) {
+  if (err) console.error(err);
+  else console.log('Artist albums', data);
+});
+
   // redirect to extractData.html
   fs.readFile('client/extractData.html', function(err, html) {
     if(err) {

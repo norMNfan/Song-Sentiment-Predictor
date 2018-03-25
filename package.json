@@ -9,8 +9,11 @@
   "author": "norla053",
   "license": "ISC",
   "dependencies": {
+    "genius-api": "^0.4.1",
     "lyricist": "^2.2.2",
     "node-fetch": "^2.1.1",
-    "node-lyrics": "^1.0.0"
+    "node-genius": "^1.1.0",
+    "node-lyrics": "^1.0.0",
+    "spotify-web-api-js": "^0.23.0"
   }
 }
