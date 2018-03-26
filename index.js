@@ -7,6 +7,7 @@ const cheerio = require('cheerio');
 const fetch = require('node-fetch');
 const Lyricist = require('lyricist/node6');
 const lyricist = new Lyricist('9VF8J-loBbWDz-6g7fktj7tp34pMrHH4VWZ3PrWEwhFn_ngsgkE0A1K8POw2ja92');
+var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
 
 // localhost:9005
 const hostname = '127.0.0.1';
@@ -103,8 +104,12 @@ async function getArtistInfo(req, res, reqBody) {
   JSONstring = querystring.parse(reqBody);
   console.log(JSONstring);
   
-  const songs = await lyricist.songsByArtist(2, { page: 2, perPage: 50 });
-  console.log(songs);
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "https://api.genius.com/artists/2", true);
+    xhttp.setRequestHeader("Content-type", "application/json");
+    xhttp.send();
+    var response = JSON.parse(xhttp.responseText);
+    console.log(response);
   
   // redirect to extractData.html
   fs.readFile('client/extractData.html', function(err, html) {
