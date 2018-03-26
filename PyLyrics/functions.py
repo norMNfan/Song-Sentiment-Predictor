@@ -8,7 +8,7 @@ class Track(object):
 		self.album = album
 		self.artist = artist
 	def __repr__(self):
-		return self.name.encode('utf-8')
+		return self.name
 	def link(self):
 		return 'http://lyrics.wikia.com/{0}:{1}'.format(self.artist.replace(' ', '-'),self.name.replace(' ','-'))
 	def getLyrics(self):
@@ -41,7 +41,7 @@ class PyLyrics:
 	@staticmethod
 	def getAlbums(singer):
 		singer = singer.replace(' ', '_')
-		s = BeautifulSoup(requests.get('http://lyrics.wikia.com/{0}'.format(singer)).text)
+		s = BeautifulSoup(requests.get('http://lyrics.wikia.com/{0}'.format(singer)).text, "lxml")
 		spans = s.findAll('span',{'class':'mw-headline'})
 		
 		als = []
@@ -59,7 +59,7 @@ class PyLyrics:
 		return als
 	@staticmethod 
 	def getTracks(album):
-		url = "http://lyrics.wikia.com/api.php?artist={0}&fmt=xml".format(album.artist())
+		url = "http://lyrics.wikia.com/api.php?action=lyrics&artist={0}&fmt=xml".format(album.artist())
 		soup = BeautifulSoup(requests.get(url).text)
 
 		for al in soup.find_all('album'):
@@ -79,7 +79,7 @@ class PyLyrics:
 		#Get main lyrics holder
 		lyrics = s.find("div",{'class':'lyricbox'})
 		if lyrics is None:
-			raise ValueError("Song or Singer does not exist or the API does not have Lyrics")
+			print("Song or Singer does not exist or the API does not have Lyrics")
 			return None
 		#Remove Scripts
 		[s.extract() for s in lyrics('script')]
@@ -89,7 +89,7 @@ class PyLyrics:
 		[comment.extract() for comment in comments]
 
 		#Remove unecessary tags
-		for tag in ['div','i','b','a']:
+		for tag in ['div','i','b','a', 'span', 'img']:
 			for match in lyrics.findAll(tag):
 				match.replaceWithChildren()
 		#Get output as a string and remove non unicode characters and replace <br> with newlines

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # See https://docs.python.org/3.2/library/socket.html
-# for a decscription of python socket and its parameters
-import socket, os.path, time, datetime, stat
+import socket, os.path, time, datetime, stat, sys, json
 
 from threading import Thread
 from argparse import ArgumentParser
 from pathlib import Path
 from PyLyrics import *
+import wikipedia
 
 BUFSIZE = 4096
 DEBUG = False
@@ -101,12 +101,16 @@ class HTTPServer:
     return response
 	
   def process_POST(self, content, resource, file_type, date_time):
-	
-    print(content)
+    
+    artist = content.split('=')[1].replace('+', ' ')
+    
     if resource == "/getArtistInfo":
-      albums = PyLyrics.getAlbums(singer='Eminem')
-      for a in albums:
-        print(a)
+		
+      # Add artist info
+      #addArtistInfo(artist)
+      
+      # Add artist lyrics
+      addArtistLyrics(artist)
 	  
     response = u''
     
@@ -129,6 +133,58 @@ class HTTPServer:
   def file_exists(self, resource):
     my_file = Path(resource)
     return my_file.is_file()
+
+# Add artist info to artistInfo.json
+def addArtistInfo(artist):
+	
+  with open("Data/artistInfo.json", "w+") as f:
+    print("adding artist info...")
+    page = wikipedia.page(artist)
+    print(page.html())
+    
+# Add artists lyrics to lyrics.json -- seperate by genre later
+def addArtistLyrics(artist):
+
+  # read current json file
+  with open("Data/lyrics.json", "r") as f:
+    json_data = json.load(f)
+	
+  # create json template
+  data = {"name" : artist,
+  "albums": []}
+  
+  # get all albums
+  albums = PyLyrics.getAlbums(singer=artist)
+  album_index = 0
+  
+  # iterate through albums
+  for album in albums:
+    print(str(album.name))
+    
+    # get all tracks for album
+    album_tracks = album.tracks()
+    
+    tracks = []
+    
+    #iterate through tracks
+    for track in album_tracks:
+      print(track.name)
+      tracks.append({
+        "name": track.name,
+        "lyrics": track.getLyrics()
+      })
+      
+    data["albums"].append({
+      "name": album.name,
+      "tracks": tracks
+    })
+    
+  json_data['artists'].append(data)
+  print(json_data)
+	
+  # open file to write to
+  with open("Data/lyrics.json", "w+") as f:
+    json.dumps(json_data, indent=4)
 
 def parse_args():
   parser = ArgumentParser()
