@@ -1,11 +1,5 @@
 You must install:
 
-npm install lyricist --save
-npm install cheerio
-npm install node-fetch --save
+pip install PyLyrics
 
-Run:
-node index.js
-
-In browser:
-localhost:9005
+http://lyrics.wikia.com/wiki/LyricWiki
