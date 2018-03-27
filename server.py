@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # See https://docs.python.org/3.2/library/socket.html
-import socket, os.path, time, datetime, stat, sys, json
+import socket, os, time, datetime, stat, sys, json
 
 from threading import Thread
 from argparse import ArgumentParser
@@ -144,10 +144,27 @@ def addArtistInfo(artist):
     
 # Add artists lyrics to lyrics.json -- seperate by genre later
 def addArtistLyrics(artist):
+	
+  # check if file exists
+  my_file = Path("Data/lyrics.json")
+  if not my_file.is_file():
+    open("Data/lyrics.json", 'a').close()
+  
+  # check if file is empty
+  if os.stat("Data/lyrics.json").st_size == 0:
+    data = '{ "artists": [] }'
+    with open("Data/lyrics.json", "w+") as f:
+      f.write(data)
 
   # read current json file
   with open("Data/lyrics.json", "r") as f:
     json_data = json.load(f)
+	
+  # check if artist already exists
+  for x in json_data["artists"]:
+    if x["name"] == artist:
+      print("Artist already saved")
+      return
 	
   # create json template
   data = {"name" : artist,
@@ -184,7 +201,7 @@ def addArtistLyrics(artist):
 	
   # open file to write to
   with open("Data/lyrics.json", "w+") as f:
-    json.dumps(json_data, indent=4)
+    json.dump(json_data, f, indent=4)
 
 def parse_args():
   parser = ArgumentParser()
