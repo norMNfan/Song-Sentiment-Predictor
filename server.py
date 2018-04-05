@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from PyLyrics import *
 import wikipedia
+import nltk
 
 BUFSIZE = 4096
 DEBUG = False
@@ -79,12 +80,19 @@ class HTTPServer:
       return NOT_ALLOWED
       
   def process_GET(self, content, resource, file_type, date_time):
+    print("GET " + resource)
     response = u''
-    if resource is "/":
+    if resource == "/" or resource == "/extractData.html":
       response += OK
       response += 'Content-Length: ' + str(len(self.read_file("client/extractData.html").encode('utf-8'))) + CRLF
       response += 'Content-Type: text/' + file_type + '\n' + CRLF
       response += self.read_file("client/extractData.html")
+      
+    elif resource == "/displayData.html":
+      response += OK
+      response += 'Content-Length: ' + str(len(self.read_file("client/displayData.html").encode('utf-8'))) + CRLF
+      response += 'Content-Type: text/' + file_type + '\n' + CRLF
+      response += self.read_file("client/displayData.html")
     
     elif file_type == "css":
       response += OK
@@ -101,16 +109,22 @@ class HTTPServer:
     return response
 	
   def process_POST(self, content, resource, file_type, date_time):
-    
-    artist = content.split('=')[1].replace('+', ' ')
+
+    artists = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%2C',',').split(',')
+    genre = content.split('&')[1].split('=')[1]
     
     if resource == "/getArtistInfo":
+      for artist in artists:
+        print("Adding " + artist + "'s lyrics to db...")
 		
-      # Add artist info
-      #addArtistInfo(artist)
+        # Add artist info
+        #addArtistInfo(artist, genre)
       
-      # Add artist lyrics
-      addArtistLyrics(artist)
+        # Add artist lyrics
+        #addArtistLyrics(artist)
+      
+    if resource == "/processLyrics":
+      processLyrics()
 	  
     response = u''
     
@@ -143,7 +157,7 @@ def addArtistInfo(artist):
     print(page.html())
     
 # Add artists lyrics to lyrics.json -- seperate by genre later
-def addArtistLyrics(artist):
+def addArtistLyrics(artist, genre):
 	
   # check if file exists
   my_file = Path("Data/lyrics.json")
@@ -168,6 +182,7 @@ def addArtistLyrics(artist):
 	
   # create json template
   data = {"name" : artist,
+  "genre" : genre,
   "albums": []}
   
   # get all albums
@@ -202,6 +217,26 @@ def addArtistLyrics(artist):
   # open file to write to
   with open("Data/lyrics.json", "w+") as f:
     json.dump(json_data, f, indent=4)
+    
+def processLyrics():
+  with open("Data/lyrics.json", "r+") as f:
+    json_data = json.load(f)
+    
+  stemmer = nltk.stem.PorterStemmer()
+    
+  for artist in json_data["artists"]:
+    print("Processing " + artist["name"])
+    for album in artist["albums"]:
+      print("\tProcessing " + album["name"])
+      for track in album["tracks"]:
+        print("\t\tProcessing " + track["name"])
+        if(track["lyrics"]):
+          word_tokens = nltk.word_tokenize(track["lyrics"])
+          stop_words = set(nltk.corpus.stopwords.words("english"))
+          filtered_track = [w for w in word_tokens if not w in stop_words]
+          print("*****")
+          print(str(len(word_tokens)))
+          print(str(len(filtered_track)))
 
 def parse_args():
   parser = ArgumentParser()
