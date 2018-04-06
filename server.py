@@ -180,7 +180,6 @@ def addArtistLyrics(artist, genre):
   # create json template
   data = {"name" : artist,
   "genre" : genre,
-  "processed" : 0,
   "albums": []}
   
   # get all albums
@@ -220,12 +219,18 @@ def processLyrics():
     json_data = json.load(f)
     
   stemmer = nltk.stem.PorterStemmer()
+  
+  artist_count = 0
+  album_count = 0
+  track_count = 0
     
   for artist in json_data["artists"]:
     print("Processing " + artist["name"])
+    album_count = 0
     
     for album in artist["albums"]:
       print("\tProcessing " + album["name"])
+      track_count = 0
       
       for track in album["tracks"]:
         print("\t\tProcessing " + track["name"])
@@ -237,7 +242,11 @@ def processLyrics():
           print("*****")
           print(str(len(word_tokens)))
           print(str(len(filtered_track)))
-          #json_data["artists"].artist["albums"].album["tracks"].track["lyrics"] = filtered_track
+          json_data["artists"][artist_count]["albums"][album_count]["tracks"][track_count]["lyrics"] = ' '.join(str(x) for x in filtered_track)
+        
+        track_count = track_count + 1
+      album_count = album_count + 1
+    artist_count = artist_count + 1
           
   with open("Data/lyrics.json", "w+") as f:
     json.dump(json_data, f, indent=4)
