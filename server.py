@@ -110,18 +110,15 @@ class HTTPServer:
 	
   def process_POST(self, content, resource, file_type, date_time):
 
-    artists = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%2C',',').split(',')
-    genre = content.split('&')[1].split('=')[1]
-    
     if resource == "/getArtistInfo":
+      artists = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%2C',',').split(',')
+      genre = content.split('&')[1].split('=')[1]
+    
       for artist in artists:
         print("Adding " + artist + "'s lyrics to db...")
-		
-        # Add artist info
-        #addArtistInfo(artist, genre)
       
         # Add artist lyrics
-        #addArtistLyrics(artist)
+        addArtistLyrics(artist, genre)
       
     if resource == "/processLyrics":
       processLyrics()
@@ -176,13 +173,14 @@ def addArtistLyrics(artist, genre):
 	
   # check if artist already exists
   for x in json_data["artists"]:
-    if x["name"] == artist:
+    if x["name"] == artist and x["genre"] == genre:
       print("Artist already saved")
       return
 	
   # create json template
   data = {"name" : artist,
   "genre" : genre,
+  "processed" : 0,
   "albums": []}
   
   # get all albums
@@ -191,7 +189,7 @@ def addArtistLyrics(artist, genre):
   
   # iterate through albums
   for album in albums:
-    print(str(album.name))
+    print(str("\t" + album.name))
     
     # get all tracks for album
     album_tracks = album.tracks()
@@ -200,7 +198,7 @@ def addArtistLyrics(artist, genre):
     
     #iterate through tracks
     for track in album_tracks:
-      print(track.name)
+      print("\t\t" + track.name)
       tracks.append({
         "name": track.name,
         "lyrics": track.getLyrics()
@@ -212,24 +210,26 @@ def addArtistLyrics(artist, genre):
     })
     
   json_data['artists'].append(data)
-  print(json_data)
 	
   # open file to write to
   with open("Data/lyrics.json", "w+") as f:
     json.dump(json_data, f, indent=4)
     
 def processLyrics():
-  with open("Data/lyrics.json", "r+") as f:
+  with open("Data/lyrics.json", "r") as f:
     json_data = json.load(f)
     
   stemmer = nltk.stem.PorterStemmer()
     
   for artist in json_data["artists"]:
     print("Processing " + artist["name"])
+    
     for album in artist["albums"]:
       print("\tProcessing " + album["name"])
+      
       for track in album["tracks"]:
         print("\t\tProcessing " + track["name"])
+        
         if(track["lyrics"]):
           word_tokens = nltk.word_tokenize(track["lyrics"])
           stop_words = set(nltk.corpus.stopwords.words("english"))
@@ -237,6 +237,10 @@ def processLyrics():
           print("*****")
           print(str(len(word_tokens)))
           print(str(len(filtered_track)))
+          #json_data["artists"].artist["albums"].album["tracks"].track["lyrics"] = filtered_track
+          
+  with open("Data/lyrics.json", "w+") as f:
+    json.dump(json_data, f, indent=4)
 
 def parse_args():
   parser = ArgumentParser()

@@ -63,7 +63,8 @@ class PyLyrics:
 		soup = BeautifulSoup(requests.get(url).text)
 
 		for al in soup.find_all('album'):
-			if al.text.lower().strip() == album.name.strip().lower():
+			# Added ignoring ascii characters and ignoring '.' character because of a metalica specific problem
+			if al.text.lower().replace('.', ' ').strip().encode('ascii','ignore') == album.name.lower().replace('.', ' ').strip().encode('ascii','ignore'):
 				currentAlbum = al
 				break
 		songs =[Track(song.text,album,album.artist()) for song in currentAlbum.findNext('songs').findAll('item')]
