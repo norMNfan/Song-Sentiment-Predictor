@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # See https://docs.python.org/3.2/library/socket.html
-import socket, os, time, datetime, stat, sys, json
+import socket, os, time, datetime, stat, sys, json, string, re
 
 from threading import Thread
 from argparse import ArgumentParser
 from pathlib import Path
 from PyLyrics import *
-import wikipedia
 import nltk
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 
 BUFSIZE = 4096
 DEBUG = False
@@ -111,17 +112,17 @@ class HTTPServer:
   def process_POST(self, content, resource, file_type, date_time):
 
     if resource == "/getArtistInfo":
-      artists = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%2C',',').split(',')
-      genre = content.split('&')[1].split('=')[1]
+		
+      artist = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%20', ' ')
+      track_name = content.split('&')[1].split('=')[1].replace('+', ' ').replace('%27', "'")
+      tag = content.split('&')[2].split('=')[1].replace('+', ' ')
+      print(artist + " " + track_name + " " + tag)
     
-      for artist in artists:
-        print("Adding " + artist + "'s lyrics to db...")
+      # Add artist lyrics
+      addArtistLyrics(artist, track_name, tag)
       
-        # Add artist lyrics
-        addArtistLyrics(artist, genre)
-      
-    if resource == "/processLyrics":
-      processLyrics()
+    if resource == "/clusterLyrics":
+      clusterLyrics()
 	  
     response = u''
     
@@ -144,17 +145,26 @@ class HTTPServer:
   def file_exists(self, resource):
     my_file = Path(resource)
     return my_file.is_file()
-
-# Add artist info to artistInfo.json
-def addArtistInfo(artist):
-	
-  with open("Data/artistInfo.json", "w+") as f:
-    print("adding artist info...")
-    page = wikipedia.page(artist)
-    print(page.html())
+  
+def clusterLyrics():
+  with open("Data/lyrics.json") as f:
+    json_data = json.load(f)
     
+  track_dict = {}
+  
+  for artist in json_data["artists"]:
+    for track in artist["tracks"]:
+       track_dict[track["track"]] = track["lyrics"]
+       
+  tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
+  tfs = tfidf.fit_transform(track_dict.values())
+  print(tfs)
+  
+  kmeans = KMeans(n_clusters=2, random_state=0).fit(tfs)
+  print(str(kmeans.labels_))
+
 # Add artists lyrics to lyrics.json -- seperate by genre later
-def addArtistLyrics(artist, genre):
+def addArtistLyrics(artist, track_name, tag):
 	
   # check if file exists
   my_file = Path("Data/lyrics.json")
@@ -171,85 +181,89 @@ def addArtistLyrics(artist, genre):
   with open("Data/lyrics.json", "r") as f:
     json_data = json.load(f)
 	
+  artist_exists = False
+  track_exists = False
+	
   # check if artist already exists
   for x in json_data["artists"]:
-    if x["name"] == artist and x["genre"] == genre:
-      print("Artist already saved")
-      return
+    if x["name"] == artist:
+      artist_exists = True
+      for track in x["tracks"]:
+        if track["track"] == track_name:
+          track_exists = True
+
+  if track_exists:
+    print("track already exists")
+    return
+	  
+  # Add artist if it doesn't exist
+  if not artist_exists:
+    json_data["artists"].append({
+      "name": artist,
+      "tracks": []
+    })
+    
+  artist_index = 0
+  counter = 0
 	
-  # create json template
-  data = {"name" : artist,
-  "genre" : genre,
-  "albums": []}
-  
+  # find index of artist in json_data
+  for x in json_data["artists"]:
+    if x["name"] == artist:
+      artist_index = counter
+    counter = counter + 1
+    
   # get all albums
   albums = PyLyrics.getAlbums(singer=artist)
   album_index = 0
   
+  found_track = False
+  
   # iterate through albums
   for album in albums:
-    print(str("\t" + album.name))
-    
+	  
     # get all tracks for album
     album_tracks = album.tracks()
     
-    tracks = []
-    
     #iterate through tracks
     for track in album_tracks:
-      print("\t\t" + track.name)
-      tracks.append({
-        "name": track.name,
-        "lyrics": track.getLyrics()
-      })
-      
-    data["albums"].append({
-      "name": album.name,
-      "tracks": tracks
-    })
-    
-  json_data['artists'].append(data)
+      if(track_name.lower() == track.name.lower()):
+        found_track = True
+        lyrics = track.getLyrics()
+        lyrics = ' '.join(tokenize(lyrics))
+        
+  if found_track: 
+    json_data["artists"][artist_index]["tracks"].append({
+      "track": track_name,
+      "lyrics": lyrics,
+      "tag": tag
+    })  
+    print("*** ADDED TRACK ***")
+  else:
+    print("could not find track")
 	
   # open file to write to
   with open("Data/lyrics.json", "w+") as f:
     json.dump(json_data, f, indent=4)
-    
-def processLyrics():
-  with open("Data/lyrics.json", "r") as f:
-    json_data = json.load(f)
+
+def tokenize(text):
+  if not text:
+    return ""
+  text = text.lower()
+  for i in set(string.punctuation+'\n'+'\t'):
+    text = text.replace(i, ' ')
+  for i in range(0,10):
+    text = text.replace('  ', ' ')
+  text = text.translate(string.punctuation)
+  word_tokens = nltk.word_tokenize(text)
+  stop_words = set(nltk.corpus.stopwords.words("english"))
+  tokens = [w for w in word_tokens if not w in stop_words]
+  tokens = (token for token in tokens if re.match('[0-9]+', token) is None)
     
   stemmer = nltk.stem.PorterStemmer()
-  
-  artist_count = 0
-  album_count = 0
-  track_count = 0
-    
-  for artist in json_data["artists"]:
-    print("Processing " + artist["name"])
-    album_count = 0
-    
-    for album in artist["albums"]:
-      print("\tProcessing " + album["name"])
-      track_count = 0
-      
-      for track in album["tracks"]:
-        print("\t\tProcessing " + track["name"])
-        
-        if(track["lyrics"]):
-          word_tokens = nltk.word_tokenize(track["lyrics"])
-          stop_words = set(nltk.corpus.stopwords.words("english"))
-          filtered_track = [w for w in word_tokens if not w in stop_words]
-          print("*****")
-          print(str(len(word_tokens)))
-          print(str(len(filtered_track)))
-          json_data["artists"][artist_count]["albums"][album_count]["tracks"][track_count]["lyrics"] = ' '.join(str(x) for x in filtered_track)
-        
-        track_count = track_count + 1
-      album_count = album_count + 1
-    artist_count = artist_count + 1
-          
-  with open("Data/lyrics.json", "w+") as f:
-    json.dump(json_data, f, indent=4)
+  stems = []
+  for i in tokens:
+    stems.append(stemmer.stem(i))
+  return stems
 
 def parse_args():
   parser = ArgumentParser()

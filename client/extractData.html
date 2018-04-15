@@ -28,27 +28,16 @@
       </nav>
       <div id="actions">
 	    <form action = "/getArtistInfo" method = "POST">
-			<label for="artist_name">Enter Artist: </label>
-	      <input id = "artist_name" type = "text" name = "name">
-	      <select name="genre">
-            <option value="blues">Blues</option>
-            <option value="classical">Classical</option>
-            <option value="country">Country</option>
-            <option value="electronic">Electronic</option>
-            <option value="folk">Folk</option>
-            <option value="hip-hop">Hip-hop</option>
-            <option value="jazz">Jazz</option>
-            <option value="reggae">Reggae</option>
-            <option value="religious">Religious</option>
-            <option value="rock">Rock</option>
-            <option value="traditional">Traditional</option>
-          </select>
+		  <label for="artist_name">Artist: </label>
+	      <input id = "artist_name" type = "text" name = "artist">
+	      <label for="track_name">Track: </label>
+	      <input id = "track_name" type = "text" name = "track">
+	      <label for="tag">Tag: </label>
+	      <input id = "tag" type = "text" name = "tag">
 	      <button type="submit" class="btn btn-success">Add Lyrics</button>
 	    </form>
-	    <form action = "/processLyrics" method = "POST">
-			<label for="artist_name">Process Lyrics: </label>
-	      <input id = "artist_name" type = "text" name = "name_field">
-	      <button type="submit" class="btn btn-danger">Process</button>
+	    <form action = "/clusterLyrics" method = "POST">
+	      <button type="submit" class="btn btn-danger">Cluster</button>
 	    </form>
       </div>
       <div class="b1"></div>
