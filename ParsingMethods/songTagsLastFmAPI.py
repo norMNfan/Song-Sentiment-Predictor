@@ -24,6 +24,6 @@ for tag in tagCats:
             })
             
 #Write to output file 'data.txt'
-with open('data.txt', 'w') as outfile:  
-    json.dump(wData, outfile)        
+with open('data.txt', 'w') as outfile:
+    json.dump(wData, outfile, indent=4)        
     

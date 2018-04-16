@@ -155,18 +155,37 @@ def clusterLyrics():
     
   track_dict = {}
   
+  num_clusters = 0
+  all_stems = []
+  
   for artist in json_data["artists"]:
+    num_clusters = num_clusters + 1
     for track in artist["tracks"]:
-       track_dict[track["track"]] = track["lyrics"]
-       
+      track_dict[track["track"]] = track["lyrics"]
+      stems = tokenize(track["lyrics"])
+      for stem in stems:
+        if stem not in all_stems:
+          all_stems.append(stem)
+      
+  print(all_stems) 
+      
   tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
   tfs = tfidf.fit_transform(track_dict.values())
-  print(tfs)
+  print(tfs.shape)
   
-  kmeans = KMeans(n_clusters=2, random_state=0).fit(tfs)
-  print(str(kmeans.labels_))
+  kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(tfs)
+  clusters = kmeans.labels_.tolist()
+  print(clusters)
+  
+  centroids = kmeans.cluster_centers_.argsort()[:, ::-1]
+  print(centroids)
+  for i in range(num_clusters):
+    print("Cluster %d words:" % i, end='')
+    
+    for ind in centroids[i, :6]: #replace 6 with n words per cluster
+        print(' %s' % vocab_frame.ix[terms[ind].split(' ')].values.tolist()[0][0].encode('utf-8', 'ignore'), end=',')
 
-# Add artists lyrics to lyrics.json -- seperate by genre later
+# Add artists lyrics to lyrics.json
 def addArtistLyrics(artist, track_name, tag):
 	
   # check if file exists
