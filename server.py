@@ -10,8 +10,8 @@ import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
-nltk.download('punkt')
-nltk.download('stopwords')
+#nltk.download('punkt')
+#nltk.download('stopwords')
 
 BUFSIZE = 4096
 DEBUG = False
@@ -158,6 +158,7 @@ def clusterLyrics():
   num_clusters = 0
   all_stems = []
   
+  # read all tracks
   for artist in json_data["artists"]:
     num_clusters = num_clusters + 1
     for track in artist["tracks"]:
@@ -171,19 +172,13 @@ def clusterLyrics():
       
   tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
   tfs = tfidf.fit_transform(track_dict.values())
-  print(tfs.shape)
   
-  kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(tfs)
-  clusters = kmeans.labels_.tolist()
+  print(tfs)
+  
+  kmeans = KMeans(n_clusters=num_clusters, random_state=0,
+	max_iter=100, n_init=1).fit(tfs)
+  clusters = kmeans.labels_
   print(clusters)
-  
-  centroids = kmeans.cluster_centers_.argsort()[:, ::-1]
-  print(centroids)
-  for i in range(num_clusters):
-    print("Cluster %d words:" % i, end='')
-    
-    for ind in centroids[i, :6]: #replace 6 with n words per cluster
-        print(' %s' % vocab_frame.ix[terms[ind].split(' ')].values.tolist()[0][0].encode('utf-8', 'ignore'), end=',')
 
 # Add artists lyrics to lyrics.json
 def addArtistLyrics(artist, track_name, tag):
