@@ -1,4 +1,13 @@
-Methods used:
+HOW TO RUN:
+1.
+$python3 server.py -p 9001
+
+2.
+In browser
+localhost:9001
+
+3.
+Enter artist name and song name then press Predict Song
 
 NLP:
 tokenizing
