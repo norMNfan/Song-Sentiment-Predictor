@@ -22,22 +22,22 @@
         <div class="container-fluid">
           <ul class="nav navbar-nav">
             <li><a id = "extractData" href="/extractData.html"><b>Extract</b></a></li>
-            <li><a id = "displayData" href="/displayData.html"><b>Display</b></a></li>
           </ul>
         </div>
       </nav>
+      <div id="results">
+      </div>
       <div id="actions">
-	    <form action = "/getArtistInfo" method = "POST">
 		  <label for="artist_name">Artist: </label>
 	      <input id = "artist_name" type = "text" name = "artist">
-	      <label for="track_name">Track: </label>
-	      <input id = "track_name" type = "text" name = "track">
-	      <label for="tag">Tag: </label>
-	      <input id = "tag" type = "text" name = "tag">
-	      <button type="submit" class="btn btn-success">Add Lyrics</button>
+	      <label for="song">Song: </label>
+	      <input id = "song" type = "text" name = "track">
+	      <button id = "AddLyrics" class="btn btn-success" onclick="predictSong()">Predict Song</button>
+	    <form action = "/classifyLyrics" method = "POST">
+	      <button type="submit" class="btn btn-danger">Classify</button>
 	    </form>
-	    <form action = "/clusterLyrics" method = "POST">
-	      <button type="submit" class="btn btn-danger">Cluster</button>
+	    <form action = "/gatherLyricsXXXXX" method = "POST">
+	      <button type="submit" class="btn btn-warning">Gather</button>
 	    </form>
       </div>
       <div class="b1"></div>

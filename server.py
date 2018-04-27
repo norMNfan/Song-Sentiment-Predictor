@@ -5,10 +5,16 @@ import socket, os, time, datetime, stat, sys, json, string, re
 from threading import Thread
 from argparse import ArgumentParser
 from pathlib import Path
-from PyLyrics import *
+import lyricwikia
 import nltk
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.cross_validation import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import SGDClassifier
+from sklearn.pipeline import Pipeline
+from sklearn import metrics
+import numpy as np
 
 #nltk.download('punkt')
 #nltk.download('stopwords')
@@ -21,6 +27,10 @@ OK = 'HTTP/1.1 200 OK' + CRLF
 CREATED = 'HTTP/1.1 201 Created' + CRLF
 NOT_FOUND = 'HTTP/1.1 404 NOT FOUND' + CRLF + 'Connection: close' + CRLF
 
+"""
+Class for starting server
+Internals not important!
+"""
 class HTTPServer:
   def __init__(self, host, port):
     print('listening on port {}'.format(port))
@@ -46,7 +56,7 @@ class HTTPServer:
       th.start()
       
   def accept_request(self, client_sock, client_address):
-    print('talking to {}'.format(client_address))
+    #print('talking to {}'.format(client_address))
     data = client_sock.recv(BUFSIZE)
     request = data.decode('utf-8')
     response = self.process_request(request)
@@ -71,7 +81,7 @@ class HTTPServer:
     
   def process_request(self, data):
     # parse request
-    if DEBUG: print("###### REQUEST BODY ######\n\n" + data + "###################\n")
+    #if DEBUG: print("###### REQUEST BODY ######\n\n" + data + "###################\n")
     (method, content, resource, file_type, date_time) = self.parse_request(data)
     
     if(method == "GET"):
@@ -84,104 +94,287 @@ class HTTPServer:
       return NOT_ALLOWED
       
   def process_GET(self, content, resource, file_type, date_time):
-    print("GET " + resource)
+    #print("GET " + resource)
     response = u''
     if resource == "/" or resource == "/extractData.html":
       response += OK
-      response += 'Content-Length: ' + str(len(self.read_file("client/extractData.html").encode('utf-8'))) + CRLF
+      response += 'Content-Length: ' + str(len(read_file("client/extractData.html").encode('utf-8'))) + CRLF
       response += 'Content-Type: text/' + file_type + '\n' + CRLF
-      response += self.read_file("client/extractData.html")
-      
-    elif resource == "/displayData.html":
-      response += OK
-      response += 'Content-Length: ' + str(len(self.read_file("client/displayData.html").encode('utf-8'))) + CRLF
-      response += 'Content-Type: text/' + file_type + '\n' + CRLF
-      response += self.read_file("client/displayData.html")
+      response += read_file("client/extractData.html")
     
     elif file_type == "css":
       response += OK
-      response += 'Content-Length: ' + str(len(self.read_file("client/css/style.css").encode('utf-8'))) + CRLF
+      response += 'Content-Length: ' + str(len(read_file("client/css/style.css").encode('utf-8'))) + CRLF
       response += 'Content-Type: text/' + file_type + '\n' + CRLF
-      response += self.read_file("client/css/style.css")
+      response += read_file("client/css/style.css")
       
     elif file_type == "js":
       response += OK
-      response += 'Content-Length: ' + str(len(self.read_file("client/js/script.js").encode('utf-8'))) + CRLF
+      response += 'Content-Length: ' + str(len(read_file("client/js/script.js").encode('utf-8'))) + CRLF
       response += 'Content-Type: text/' + file_type + '\n' + CRLF
-      response += self.read_file("client/js/script.js")
+      response += read_file("client/js/script.js")
 	
     return response
 	
   def process_POST(self, content, resource, file_type, date_time):
 
-    if resource == "/getArtistInfo":
-		
+    if resource == "/predictSong":
+
       artist = content.split('&')[0].split('=')[1].replace('+', ' ').replace('%20', ' ')
-      track_name = content.split('&')[1].split('=')[1].replace('+', ' ').replace('%27', "'")
-      tag = content.split('&')[2].split('=')[1].replace('+', ' ')
-      print(artist + " " + track_name + " " + tag)
+      song = content.split('&')[1].split('=')[1].replace('+', ' ').replace('%27', "'")
+      print(artist + " " + song)
     
       # Add artist lyrics
-      addArtistLyrics(artist, track_name, tag)
+      return predictSong(artist, song)
       
-    if resource == "/clusterLyrics":
-      clusterLyrics()
+    if resource == "/classifyLyrics":
+      classifyLyrics()
+      
+    if resource == '/gatherLyrics':
+      gatherLyrics()
+      
+    else:
 	  
-    response = u''
+      response = u''
+      response += OK
+      response += 'Content-Length: ' + str(len(read_file("client/extractData.html").encode('utf-8'))) + CRLF
+      response += 'Content-Type: text/' + file_type + '\n' + CRLF
+      response += read_file("client/extractData.html")
     
-    response += OK
-    response += 'Content-Length: ' + str(len(self.read_file("client/extractData.html").encode('utf-8'))) + CRLF
-    response += 'Content-Type: text/' + file_type + '\n' + CRLF
-    response += self.read_file("client/extractData.html")
-    
-    return response
+      return response
 	
-  def read_file(self, resource):
-    with open(resource, "r") as f:
-      return f.read()
-      
-  def write_file(self, resource, content):
-    with open(resource, "w") as f:
-      f.write(content)
-      os.chmod(resource, 646)
-    
-  def file_exists(self, resource):
-    my_file = Path(resource)
-    return my_file.is_file()
+"""
+Help function for reading files
+"""
+def read_file(resource):
+  with open(resource, "r") as f:
+    return f.read()
   
-def clusterLyrics():
+"""
+Helper function for writing to files
+"""   
+def write_file(resource, content):
+  with open(resource, "w") as f:
+    f.write(content)
+    os.chmod(resource, 646)
+"""
+Helper function to check if file exists
+""" 
+def file_exists(resource):
+  my_file = Path(resource)
+  return my_file.is_file()
+
+"""
+Read in data from known songs/sentiment
+Only do this once!
+"""
+def gatherLyrics():
+  with open("Data/ground.json") as g:
+    ground_data = json.load(g)
+  
+  for tagName in ground_data:
+    print(tagName)
+    for song in ground_data[tagName]:
+      #print(song['Artist'] + " " + song['Title'])
+      addArtistLyrics(song['Artist'], song['Title'], tagName)
+
+"""
+Classify song lyrics based on Naive Bayes(NB) and Support Vector Model(SVM)
+print the recall, precision and f1-score of each model
+Iterate 100 times and find the average accuracy between the two models
+"""
+def classifyLyrics():
+  with open("Data/lyrics.json") as f:
+    json_data = json.load(f)
+  
+  all_data = []
+  all_labels = []
+  
+  train_data = []
+  train_labels = []
+  
+  test_data = []
+  test_labels = []
+  
+  # Read all lyrics int memory
+  for track in json_data["songs"]:
+    all_data.append(track["lyrics"])
+    all_labels.append(getTagNumber(track["tag"]))
+    
+  iterations = 100
+  avg_pred_NB = avg_pred_SVM = 0
+    
+  for x in range(0,iterations):
+	  
+    # Split data into train and test data
+    train_data, test_data, train_labels, test_labels = train_test_split(all_data, all_labels, test_size = 0.2)
+  
+    print("*************************************************")
+    print("********************* NB ************************")
+    print("*************************************************")
+  
+    # Create pipeline: data => tokens => tfidf model => NB classifer
+    text_clf_NB = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf', MultinomialNB())
+    ])
+  
+    # Create Naive Bayes (NB) classifier for training data
+    text_clf_NB.fit(train_data, train_labels)
+    
+    # Predict test data
+    predicted = text_clf_NB.predict(test_data)
+    
+    # Calculate how much of the test data we predicted correctly
+    predictions_NB = np.mean(predicted == test_labels)
+    
+    avg_pred_NB += predictions_NB
+    print(predictions_NB)
+    print(metrics.classification_report(test_labels, predicted))
+  
+    print("*************************************************")
+    print("******************** SVM ************************")
+    print("*************************************************")
+  
+    # Create pipeline: data => tokens => tfidf model => SVM classifier
+    text_clf_SVM = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf', SGDClassifier(loss='hinge',
+                                               alpha=1e-3, random_state=42)),
+    ])
+  
+    # Create Support Vector Machine (SVM) classifier for training data
+    text_clf_SVM.fit(train_data, train_labels)
+    
+    # Predict test data
+    predicted = text_clf_SVM.predict(test_data)
+    
+    # Calculate how much of the test data we predicted correctly
+    predictions_SVM = np.mean(predicted == test_labels)
+    
+    avg_pred_SVM += predictions_SVM
+    print(predictions_SVM)
+    print(metrics.classification_report(test_labels, predicted))
+    
+  avg_pred_NB = avg_pred_NB * 100 / iterations
+  avg_pred_SVM = avg_pred_SVM * 100 / iterations
+    
+  print("NB " + str(avg_pred_NB) + " % correct")
+  print("SVM " + str(avg_pred_SVM) + " % correct")
+
+"""
+Predicts the sentiment of a song based on its lyrics
+Creates an SVM and then classifies the song
+Returns the accutacy % along with the classification
+"""
+def predictSong(artist, song):
   with open("Data/lyrics.json") as f:
     json_data = json.load(f)
     
-  track_dict = {}
+  # Try to extract lyrics from lyricwikia (the API can be finicky)
+  try:
+    lyrics = lyricwikia.get_lyrics(artist,song)
+    lyrics = " ".join(tokenize(lyrics))
+        
+    all_data = []
+    all_labels = []
   
-  num_clusters = 0
-  all_stems = []
+    train_data = []
+    train_labels = []
+    test_data = []
+    test_labels = []
   
-  # read all tracks
-  for artist in json_data["artists"]:
-    num_clusters = num_clusters + 1
-    for track in artist["tracks"]:
-      track_dict[track["track"]] = track["lyrics"]
-      stems = tokenize(track["lyrics"])
-      for stem in stems:
-        if stem not in all_stems:
-          all_stems.append(stem)
+    # Read all lyrics into memory
+    for track in json_data["songs"]:
+      all_data.append(track["lyrics"])
+      all_labels.append(getTagNumber(track["tag"]))
+    
+    # Split data into train and test data
+    train_data, test_data, train_labels, test_labels = train_test_split(all_data, all_labels, test_size = 0.2)
+  
+    # Create pipeline: data => tokens => tfidf model => SVM classifier
+    # We use SVM instead of NB because on average
+    # NB accuracy: 35.5 %
+    # SVM accuracy: 41.5 %
+    text_clf_SVM = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf', SGDClassifier(loss='hinge',
+                                               alpha=1e-3, random_state=42)),
+    ])
+  
+    # Create Support Vector Machine (SVM) classifier for training data
+    text_clf_SVM.fit(train_data, train_labels)
+    
+    # Predict test data
+    predicted = text_clf_SVM.predict(test_data)
+    
+    # Calculate how much of the test data we predicted correctly
+    predictions_SVM = np.mean(predicted == test_labels)
+         
+    # Predict song
+    new_song = []
+    new_song.append(lyrics)
+    new_song_prediction = text_clf_SVM.predict(new_song)
+    
+    # Print output
+    print(getTagName(new_song_prediction))
+    print("Accuracy of: " + str(predictions_SVM) + " %")
+    
+    # Form return message
+    message = "sentiment: " + getTagName(new_song_prediction)
+    message += " Accuracy of: " + str(predictions_SVM) + " %\n"
       
-  print(all_stems) 
-      
-  tfidf = TfidfVectorizer(tokenizer=tokenize, stop_words='english')
-  tfs = tfidf.fit_transform(track_dict.values())
-  
-  print(tfs)
-  
-  kmeans = KMeans(n_clusters=num_clusters, random_state=0,
-	max_iter=100, n_init=1).fit(tfs)
-  clusters = kmeans.labels_
-  print(clusters)
+    response = ''
+    response += OK
+    response += 'Content-Length: ' + str(len(message)) + CRLF
+    response += 'Content-Type: text/html'  + '\n' + CRLF
+    response += message
+    return response
+     
+  # If we weren't able to extract the lyrics from lyricwikia API
+  except:
+    response = ''
+    response += OK
+    response += 'Content-Length: ' + str(len("Could not find song")) + CRLF
+    response += 'Content-Type: text/html'  + '\n' + CRLF
+    response += "Could not find song"
+    return response
 
+# map tag # to tag name
+def getTagNumber(tagName):
+  return {
+    'happy': 0,
+    'anger': 1,
+    'funny': 2,
+    'hurt': 3,
+    'calm': 4,
+    'romantic': 5,
+    'inspirational': 6,
+  }[tagName]
+  
+# map tag name to tag #
+def getTagName(tagNumber):
+  if tagNumber == 0:
+    return 'happy'
+  elif tagNumber == 1:
+    return 'anger'
+  elif tagNumber == 2:
+    return 'funny'
+  elif tagNumber == 3:
+    return 'hurt'
+  elif tagNumber == 4:
+    return 'calm'
+  elif tagNumber == 5:
+    return 'romantic'
+  elif tagNumber == 6:
+    return 'inspirational'
+
+"""
+Used for collecting data
+Adds an artist, song, and tag into lyrics.json
+"""
 # Add artists lyrics to lyrics.json
-def addArtistLyrics(artist, track_name, tag):
+def addArtistLyrics(artist, song, tag):
 	
   # check if file exists
   my_file = Path("Data/lyrics.json")
@@ -190,78 +383,42 @@ def addArtistLyrics(artist, track_name, tag):
   
   # check if file is empty
   if os.stat("Data/lyrics.json").st_size == 0:
-    data = '{ "artists": [] }'
+    data = '{ "songs": [] }'
     with open("Data/lyrics.json", "w+") as f:
       f.write(data)
 
   # read current json file
   with open("Data/lyrics.json", "r") as f:
     json_data = json.load(f)
-	
-  artist_exists = False
-  track_exists = False
-	
-  # check if artist already exists
-  for x in json_data["artists"]:
-    if x["name"] == artist:
-      artist_exists = True
-      for track in x["tracks"]:
-        if track["track"] == track_name:
-          track_exists = True
-
-  if track_exists:
-    print("track already exists")
-    return
-	  
-  # Add artist if it doesn't exist
-  if not artist_exists:
-    json_data["artists"].append({
-      "name": artist,
-      "tracks": []
-    })
     
-  artist_index = 0
-  counter = 0
-	
-  # find index of artist in json_data
-  for x in json_data["artists"]:
-    if x["name"] == artist:
-      artist_index = counter
-    counter = counter + 1
+  for song in json_data["songs"]:
+    if song["track"] == song and song["artist"] == artist:
+      print("song already saved!")
+      return
     
-  # get all albums
-  albums = PyLyrics.getAlbums(singer=artist)
-  album_index = 0
-  
-  found_track = False
-  
-  # iterate through albums
-  for album in albums:
-	  
-    # get all tracks for album
-    album_tracks = album.tracks()
-    
-    #iterate through tracks
-    for track in album_tracks:
-      if(track_name.lower() == track.name.lower()):
-        found_track = True
-        lyrics = track.getLyrics()
-        lyrics = ' '.join(tokenize(lyrics))
-        
-  if found_track: 
-    json_data["artists"][artist_index]["tracks"].append({
-      "track": track_name,
-      "lyrics": lyrics,
-      "tag": tag
-    })  
-    print("*** ADDED TRACK ***")
-  else:
-    print("could not find track")
-	
+  try:
+    lyrics = lyricwikia.get_lyrics(artist,song)
+    if lyrics != "instrument":
+      lyrics = " ".join(tokenize(lyrics))
+      #print(lyrics)
+      print("*** ADDED TRACK ***")
+      json_data["songs"].append({
+        "artist": artist,
+        "track": song,
+        "lyrics": lyrics,
+        "tag": tag
+      })
+  except:
+    print("could not find song")
+      
   # open file to write to
   with open("Data/lyrics.json", "w+") as f:
     json.dump(json_data, f, indent=4)
 
+"""
+Tokenize lyrics
+Not actually used in our algorithm...
+"""
 def tokenize(text):
   if not text:
     return ""

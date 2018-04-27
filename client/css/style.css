@@ -31,3 +31,7 @@ body {
 #actions > form {
 	margin: 10px;
 }
+
+#songFail {
+	color:red;
+}

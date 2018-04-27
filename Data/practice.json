@@ -1,0 +1,36 @@
+{
+	"songs": [
+		{
+			"lyrics" : "I like to run when it is sunny outside on monday",
+			"tag" : "happy"
+		},
+		{
+			"lyrics" : "I hate it when rain comes from the sky thursday",
+			"tag" : "anger"
+		},
+		{
+			"lyrics" : "I hate it when rain comes from the sky friday",
+			"tag" : "anger"
+		},
+		{
+			"lyrics" : "I hate it when rain comes from the sky saturday",
+			"tag" : "anger"
+		},
+		{
+			"lyrics" : "I like to run when it is sunny outside on tuesday",
+			"tag" : "happy"
+		},
+		{
+			"lyrics" : "I like to run when it is sunny outside on wednesday",
+			"tag" : "happy"
+		},
+		{
+			"lyrics" : "my favorite band is not metalica or lecrae",
+			"tag" : "romantic"
+		},
+		{
+			"lyrics" : "my favorite band is not metalica or lecrae haha",
+			"tag" : "romantic"
+		}
+	]
+}
